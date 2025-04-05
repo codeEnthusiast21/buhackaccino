@@ -11,4 +11,8 @@
         <item>Kannada</item>
         <item>Urdu</item>
     </string-array>
+    <string name="accessibility_enabled">Accessibility settings detected</string>
+    <string name="accessibility_disabled">No accessibility settings detected</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="status_icon">Status Icon</string>
 </resources>

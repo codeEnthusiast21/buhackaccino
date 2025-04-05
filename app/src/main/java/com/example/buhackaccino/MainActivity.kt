@@ -320,7 +320,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         )
 
         queue.add(jsonRequest)
-    }     private fun handleApiError(error: Exception) {
+    }
+    private fun handleApiError(error: Exception) {
         val errorMessage = when (error) {
             is com.android.volley.NoConnectionError -> "No internet connection"
             is com.android.volley.TimeoutError -> "Request timed out"

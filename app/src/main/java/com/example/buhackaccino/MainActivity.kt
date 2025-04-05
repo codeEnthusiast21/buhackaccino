@@ -8,6 +8,7 @@ import android.speech.tts.TextToSpeech
 import java.io.ByteArrayOutputStream
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
@@ -20,6 +21,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.firebase.FirebaseApp
@@ -49,7 +51,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val NEBIUS_API_ENDPOINT = "https://api.studio.nebius.com/v1/chat/completions"
     private val NEBIUS_API_KEY = "eyJhbGciOiJIUzI1NiIsImtpZCI6IlV6SXJWd1h0dnprLVRvdzlLZWstc0M1akptWXBvX1VaVkxUZlpnMDRlOFUiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJnb29nbGUtb2F1dGgyfDExNDY0MDczMjM5MDk5ODIyOTYwMiIsInNjb3BlIjoib3BlbmlkIG9mZmxpbmVfYWNjZXNzIiwiaXNzIjoiYXBpX2tleV9pc3N1ZXIiLCJhdWQiOlsiaHR0cHM6Ly9uZWJpdXMtaW5mZXJlbmNlLmV1LmF1dGgwLmNvbS9hcGkvdjIvIl0sImV4cCI6MTkwMTUyMDk2MCwidXVpZCI6ImQxMmIwYTMzLWVmMmEtNGViNC1hMTA5LTk4OWUyMWIxMTRjZSIsIm5hbWUiOiJURVNUMSIsImV4cGlyZXNfYXQiOiIyMDMwLTA0LTA0VDA4OjE2OjAwKzAwMDAifQ.tmdbnrAUQmsopIDMYCmxI16HpG5Ij8dijxfFKlThHrw"
     private var isCameraFrozen = false
-
+    private lateinit var chatAdapter: ChatAdapter
     private var startX = 0f
     private var startY = 0f
     private val SWIPE_MIN_DISTANCE = 120
@@ -60,6 +62,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Initialize chat recycler view
+        chatAdapter = ChatAdapter()
+        binding.chatRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = chatAdapter
+        }
 
         // Initialize Firebase Storage with correct bucket
         try {
@@ -124,13 +133,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun uploadImageToFirebase(imageBytes: ByteArray) {
+        binding.progressBar.visibility = View.VISIBLE
+        Toast.makeText(this, "Processing image, please wait...", Toast.LENGTH_SHORT).show()
         try {
             val timestamp = System.currentTimeMillis()
             val fileName = "image_${timestamp}.jpg"
             val imageRef = storageRef.child("images/$fileName")
 
             Log.d(TAG, "Starting upload to: ${imageRef.path}")
-            binding.resultText.text = "Starting upload..."
 
             // Create metadata
             val metadata = StorageMetadata.Builder()
@@ -143,7 +153,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             uploadTask
                 .addOnProgressListener { taskSnapshot ->
                     val progress = (100.0 * taskSnapshot.bytesTransferred) / taskSnapshot.totalByteCount
-                    binding.resultText.text = "Uploading: ${progress.toInt()}%"
                     Log.d(TAG, "Upload progress: $progress%")
                 }
                 .addOnSuccessListener {
@@ -152,13 +161,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         .addOnSuccessListener { downloadUri ->
                             val httpsUrl = downloadUri.toString()
                             Log.d(TAG, "HTTPS Download URL: $httpsUrl")
-                            binding.resultText.text = "Upload successful"
                             sendImageUrlToApi(httpsUrl)
                         }
                         .addOnFailureListener { e ->
                             val errorMsg = "Failed to get download URL: ${e.message}"
                             Log.e(TAG, errorMsg, e)
-                            binding.resultText.text = errorMsg
                             Toast.makeText(baseContext, errorMsg, Toast.LENGTH_LONG).show()
                             resumeCamera()
                         }
@@ -166,7 +173,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .addOnFailureListener { e ->
                     val errorMsg = "Upload failed: ${e.message}"
                     Log.e(TAG, errorMsg, e)
-                    binding.resultText.text = errorMsg
                     Toast.makeText(baseContext, errorMsg, Toast.LENGTH_LONG).show()
                     resumeCamera()
                 }
@@ -174,11 +180,78 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         } catch (e: Exception) {
             val errorMsg = "Error in upload: ${e.message}"
             Log.e(TAG, errorMsg, e)
-            binding.resultText.text = errorMsg
             Toast.makeText(baseContext, errorMsg, Toast.LENGTH_LONG).show()
             resumeCamera()
         }
     }
+    private fun sendImageUrlToApi(firebaseUrl: String) {
+        // Add message with image to chat
+        chatAdapter.addMessage(ChatMessage("Analyzing image...", firebaseUrl))
+
+        val queue = Volley.newRequestQueue(this)
+
+        val jsonObject = JSONObject().apply {
+            put("model", "Qwen/Qwen2-VL-72B-Instruct")
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("type", "text")
+                            put("text", "What's in this image ?")
+                        })
+                        put(JSONObject().apply {
+                            put("type", "image_url")
+                            put("image_url", JSONObject().apply {
+                                put("url", firebaseUrl)
+                            })
+                        })
+                    })
+                })
+            })
+            put("max_tokens", 300)
+        }
+
+        val jsonRequest = object : JsonObjectRequest(
+            Method.POST,
+            NEBIUS_API_ENDPOINT,
+            jsonObject,
+            { response ->
+                try {
+                    val content = response.getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getString("content")
+
+                    chatAdapter.addMessage(ChatMessage(content))
+                    binding.progressBar.visibility = View.GONE
+                    speakText(content)
+                    resumeCamera()
+                } catch (e: Exception) {
+                    handleApiError(e)
+                }
+            },
+            { error ->
+                handleApiError(error)
+            }
+        ) {
+            override fun getHeaders(): MutableMap<String, String> {
+                return HashMap<String, String>().apply {
+                    put("Authorization", "Bearer $NEBIUS_API_KEY")
+                    put("Content-Type", "application/json")
+                }
+            }
+        }
+
+        jsonRequest.retryPolicy = DefaultRetryPolicy(
+            30000,
+            0,
+            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        )
+
+        queue.add(jsonRequest)
+    }
+
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
@@ -256,71 +329,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             Log.e(TAG, "Error resuming camera: ${e.message}")
         }
     }
-
-    private fun sendImageUrlToApi(firebaseUrl: String) {
-        val queue = Volley.newRequestQueue(this)
-        binding.resultText.text = "Analyzing image..."
-
-        val jsonObject = JSONObject().apply {
-            put("model", "Qwen/Qwen2-VL-72B-Instruct")
-            put("messages", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("type", "text")
-                            put("text", "What's in this image ?")
-                        })
-                        put(JSONObject().apply {
-                            put("type", "image_url")
-                            put("image_url", JSONObject().apply {
-                                put("url", firebaseUrl)
-                            })
-                        })
-                    })
-                })
-            })
-            put("max_tokens", 300)
-        }
-
-        val jsonRequest = object : JsonObjectRequest(
-            Method.POST,
-            NEBIUS_API_ENDPOINT,
-            jsonObject,
-            { response ->
-                try {
-                    val content = response.getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content")
-
-                    binding.resultText.text = content
-                    speakText(content)
-                    resumeCamera()
-                } catch (e: Exception) {
-                    handleApiError(e)
-                }
-            },
-            { error ->
-                handleApiError(error)
-            }
-        ) {
-            override fun getHeaders(): MutableMap<String, String> {
-                return HashMap<String, String>().apply {
-                    put("Authorization", "Bearer $NEBIUS_API_KEY")
-                    put("Content-Type", "application/json")
-                }
-            }
-        }
-
-        jsonRequest.retryPolicy = DefaultRetryPolicy(
-            30000,
-            0,
-            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        )
-
-        queue.add(jsonRequest)
-    }
     private fun handleApiError(error: Exception) {
         val errorMessage = when (error) {
             is com.android.volley.NoConnectionError -> "No internet connection"
@@ -332,7 +340,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             else -> "API Error: ${error.message}"
         }
         Log.e(TAG, "API Error Details: $errorMessage", error)
-        binding.resultText.text = errorMessage
         Toast.makeText(baseContext, errorMessage, Toast.LENGTH_LONG).show()
         resumeCamera()
     }

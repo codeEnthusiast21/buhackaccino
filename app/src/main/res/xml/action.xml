@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<actions>
+    <action intentName="actions.intent.OPEN_APP_FEATURE">
+        <parameter name="feature" type="Feature">
+            <data-type>camera</data-type>
+        </parameter>
+        <fulfillment urlTemplate="camera://open" />
+    </action>
+</actions>

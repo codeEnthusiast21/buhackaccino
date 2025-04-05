@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">buhackaccino</string>
+    <string-array name="language_options">
+        <item>English (US)</item>
+        <item>Hindi</item>
+        <item>Tamil</item>
+        <item>Bengali</item>
+        <item>Telugu</item>
+        <item>Marathi</item>
+        <item>Gujarati</item>
+        <item>Kannada</item>
+        <item>Urdu</item>
+    </string-array>
 </resources>

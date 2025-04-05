@@ -66,4 +66,16 @@ dependencies {
     implementation("com.android.volley:volley:1.2.1")
 
 
+    implementation (libs.lottie)
+
+    // Existing dependencies
+    implementation (libs.androidx.core.ktx.v1101)
+    implementation (libs.androidx.appcompat.v161)
+    implementation (libs.material.v190)
+    implementation (libs.androidx.constraintlayout.v214)
+
+    // Add ML Kit Translation dependency
+    implementation (libs.translate)
+
+
 }

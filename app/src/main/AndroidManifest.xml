@@ -28,6 +28,10 @@
         android:theme="@style/Theme.Buhackaccino"
         tools:targetApi="31">
         <activity
+            android:name=".touristHomeActivity"
+            android:exported="false" >
+        </activity>
+        <activity
             android:name=".TransitionActivity"
             android:exported="false" />
         <activity

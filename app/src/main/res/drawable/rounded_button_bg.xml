@@ -1,0 +1,9 @@
+<!-- rounded_button_bg.xml - Rounded button background with gradient -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="28dp" />
+    <gradient
+        android:angle="135"
+        android:endColor="#6200EA"
+        android:startColor="#BB86FC" />
+</shape>

@@ -1,5 +1,6 @@
 package com.example.buhackaccino
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,45 +8,56 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
-class ChatAdapter : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
+
+class ChatAdapter(private val context: Context) : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
     private val messages = mutableListOf<ChatMessage>()
+    private var recyclerView: RecyclerView? = null
+
 
     class MessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val messageText: TextView = view.findViewById(R.id.messageText)
-        val messageImage: ImageView = view.findViewById(R.id.messageImage)
-        val timestamp: TextView = view.findViewById(R.id.timestamp)
+        val imageView: ImageView = view.findViewById(R.id.imageView)
+    }
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
     }
 
-    fun addMessage(message: ChatMessage) {
-        messages.add(message)
-        notifyItemInserted(messages.size - 1)
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        this.recyclerView = null
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.chat_message_item, parent, false)
+            .inflate(R.layout.item_chat_message, parent, false)
         return MessageViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
         val message = messages[position]
+
         holder.messageText.text = message.text
 
-        message.imageUrl?.let { url ->
-            holder.messageImage.visibility = View.VISIBLE
-            Glide.with(holder.messageImage)
-                .load(url)
-                .into(holder.messageImage)
-        } ?: run {
-            holder.messageImage.visibility = View.GONE
+        if (message.imageUrl != null) {
+            holder.imageView.visibility = View.VISIBLE
+            Glide.with(context)
+                .load(message.imageUrl)
+                .centerCrop()
+                .transition(DrawableTransitionOptions.withCrossFade())
+                .into(holder.imageView)
+        } else {
+            holder.imageView.visibility = View.GONE
         }
-
-        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-        holder.timestamp.text = sdf.format(message.timestamp)
     }
 
     override fun getItemCount() = messages.size
+
+    fun addMessage(message: ChatMessage) {
+        messages.add(message)
+        notifyItemInserted(messages.size - 1)
+        recyclerView?.smoothScrollToPosition(messages.size - 1)
+    }
 }

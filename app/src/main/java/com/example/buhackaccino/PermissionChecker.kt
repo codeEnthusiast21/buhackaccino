@@ -8,81 +8,154 @@ import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.view.View
-import android.view.accessibility.AccessibilityManager
 import android.provider.Settings
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.example.buhackaccino.databinding.ActivityPermissionCheckerBinding
+import java.util.Locale
 
-class PermissionChecker : AppCompatActivity() {
+class PermissionCheckerActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var binding: ActivityPermissionCheckerBinding
-    private lateinit var tts: TextToSpeech
-    private var isVoiceControlEnabled = false
+    private lateinit var textToSpeech: TextToSpeech
+    private var selectedLanguage = "en"
+
+    private var accessibilitySettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        checkAccessibilityPermission()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityPermissionCheckerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                checkAccessibilitySettings()
+        textToSpeech = TextToSpeech(this, this)
+
+        setupLanguageSpinner()
+        setupButtons()
+        checkAccessibilityPermission()
+    }
+
+    private fun setupLanguageSpinner() {
+        val languages = arrayOf("English", "Hindi")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, languages)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+        binding.languageSpinner.apply {
+            this.adapter = adapter
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    selectedLanguage = if (position == 0) "en" else "hi"
+                }
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
             }
         }
     }
 
-    private fun checkAccessibilitySettings() {
-        val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val isTalkBackEnabled = accessibilityManager.isEnabled &&
-                accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN).isNotEmpty()
-
-        if (isTalkBackEnabled) {
-            isVoiceControlEnabled = true
-            binding.statusImage.setImageResource(R.drawable.ic_check)
-            binding.statusText.text = "Not visually impaired?"
-            binding.cancelButton.visibility = View.VISIBLE
-            speakText("Switching to voice controlled mode. Tap cancel if you are not visually impaired")
-
-            binding.cancelButton.setOnClickListener {
-                isVoiceControlEnabled = false
-                tts.stop()
-                binding.statusText.text = "Voice control cancelled"
-                binding.cancelButton.visibility = View.GONE
-
-                // Navigate to main activity after short delay
-                Handler(Looper.getMainLooper()).postDelayed({
-                    startActivity(Intent(this, MainActivity::class.java)
-                        .putExtra("voice_control_enabled", false))
-                    finish()
-                }, 1500)
+    private fun setupButtons() {
+        binding.apply {
+            settingsButton.setOnClickListener {
+                openAccessibilitySettings()
             }
 
-            // Auto proceed with voice control after delay if not cancelled
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (isVoiceControlEnabled) {
-                    startActivity(Intent(this, MainActivity::class.java)
-                        .putExtra("voice_control_enabled", true))
-                    finish()
-                }
-            }, 5000)
-        } else {
-            binding.statusImage.setImageResource(R.drawable.ic_error)
-            binding.statusText.text = getString(R.string.accessibility_disabled)
-            binding.settingsButton.visibility = View.VISIBLE
-            binding.settingsButton.setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            skipToMainButton.setOnClickListener {
+                startMainActivity()
+            }
+
+            continueButton.setOnClickListener {
+                startMainActivity()
+            }
+
+            cancelButton.setOnClickListener {
+                finish()
             }
         }
+    }
+
+    private fun checkAccessibilityPermission() {
+        if (isAccessibilityServiceEnabled()) {
+            showVoiceControlDisabled()
+        } else {
+            showAccessibilityNeeded()
+        }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val expectedServiceName = "${packageName}/.services.VoiceControlService"
+        try {
+            val enabledServices = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            return enabledServices?.contains(expectedServiceName) == true
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private fun showVoiceControlDisabled() {
+        binding.apply {
+            statusImage.setImageResource(R.drawable.ic_info)
+            statusText.text = "Voice Control will not start automatically"
+            languageSpinner.visibility = View.VISIBLE
+            settingsButton.visibility = View.GONE
+            continueButton.visibility = View.VISIBLE
+            skipToMainButton.visibility = View.VISIBLE
+            cancelButton.visibility = View.VISIBLE
+        }
+    }
+
+    private fun showAccessibilityNeeded() {
+        binding.apply {
+            statusImage.setImageResource(R.drawable.ic_warning)
+            statusText.text = "Please enable Voice Control Service in Accessibility Settings"
+            languageSpinner.visibility = View.GONE
+            settingsButton.visibility = View.VISIBLE
+            continueButton.visibility = View.GONE
+            skipToMainButton.visibility = View.VISIBLE
+            cancelButton.visibility = View.GONE
+        }
+        speakText("Please enable voice control service in accessibility settings")
+    }
+
+    private fun openAccessibilitySettings() {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            accessibilitySettingsLauncher.launch(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Unable to open Accessibility Settings", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startMainActivity() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("selected_language", selectedLanguage)
+        }
+        startActivity(intent)
+        finish()
     }
 
     private fun speakText(text: String) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+        val locale = if (selectedLanguage == "hi") Locale("hi", "IN") else Locale.US
+        textToSpeech.language = locale
+        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            checkAccessibilityPermission()
+        }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        if (tts.isSpeaking) {
-            tts.stop()
+        if (::textToSpeech.isInitialized) {
+            textToSpeech.stop()
+            textToSpeech.shutdown()
         }
-        tts.shutdown()
+        super.onDestroy()
     }
 }

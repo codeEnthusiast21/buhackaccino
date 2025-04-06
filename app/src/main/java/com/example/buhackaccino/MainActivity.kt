@@ -2,6 +2,7 @@ package com.example.buhackaccino
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.camera.core.Camera
 import android.speech.tts.TextToSpeech
@@ -9,6 +10,10 @@ import java.io.ByteArrayOutputStream
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import android.content.Context
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
@@ -22,6 +27,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.firebase.FirebaseApp
@@ -39,6 +45,7 @@ import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
+    private var lastImageUrl: String? = null
     private var imageCapture: ImageCapture? = null
     private lateinit var storage: FirebaseStorage
     private lateinit var storageRef: StorageReference
@@ -57,18 +64,47 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val SWIPE_MIN_DISTANCE = 120
     private var touchStartTime: Long = 0
     private val MAX_CLICK_DURATION = 200
+    private var isUserScrolling = false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+
+
+        binding.progressBarCard.visibility = View.GONE
         // Initialize chat recycler view
-        chatAdapter = ChatAdapter()
-        binding.chatRecyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = chatAdapter
+        chatAdapter = ChatAdapter(this)
+        // Add in onCreate after chatAdapter initialization
+        binding.promptInput.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_DONE ||
+                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)) {
+                sendCustomPrompt()
+                true
+            } else {
+                false
+            }
         }
+        binding.btnAdd.setOnClickListener {
+            sendCustomPrompt()
+        }
+        binding.chatRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity).apply {
+                stackFromEnd = true // Makes the list stack from bottom
+                reverseLayout = false
+            }
+            adapter = chatAdapter
+            itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator()
+        }
+
+        binding.chatRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                isUserScrolling = newState == RecyclerView.SCROLL_STATE_DRAGGING
+            }
+        })
 
         // Initialize Firebase Storage with correct bucket
         try {
@@ -131,6 +167,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
         }
     }
+    private fun sendCustomPrompt() {
+        lastImageUrl?.let { url ->
+            val customPrompt = binding.promptInput.text.toString().trim()
+            if (customPrompt.isNotEmpty()) {
+                sendImageUrlToApi(url, customPrompt)
+                binding.promptInput.text.clear()
+                hideKeyboard()
+            }
+        }
+    }
 
     private fun uploadImageToFirebase(imageBytes: ByteArray) {
         binding.progressBar.visibility = View.VISIBLE
@@ -184,8 +230,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             resumeCamera()
         }
     }
-    private fun sendImageUrlToApi(firebaseUrl: String) {
-        // Add message with image to chat
+    private fun sendImageUrlToApi(firebaseUrl: String, customPrompt: String = "What's in this image ?") {
+        lastImageUrl = firebaseUrl // Store the URL for reuse
         chatAdapter.addMessage(ChatMessage("Analyzing image...", firebaseUrl))
 
         val queue = Volley.newRequestQueue(this)
@@ -198,7 +244,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     put("content", JSONArray().apply {
                         put(JSONObject().apply {
                             put("type", "text")
-                            put("text", "What's in this image ?")
+                            put("text", customPrompt)
                         })
                         put(JSONObject().apply {
                             put("type", "image_url")
@@ -223,9 +269,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         .getJSONObject("message")
                         .getString("content")
 
-                    chatAdapter.addMessage(ChatMessage(content))
-                    binding.progressBar.visibility = View.GONE
-                    speakText(content)
+                    runOnUiThread {
+                        chatAdapter.addMessage(ChatMessage(content))
+                        binding.progressBar.visibility = View.GONE
+                        speakText(content)
+                        if (!isUserScrolling) {
+                            binding.chatRecyclerView.postDelayed({
+                                binding.chatRecyclerView.smoothScrollToPosition(chatAdapter.itemCount - 1)
+                            }, 100)
+                        }
+                    }
                     resumeCamera()
                 } catch (e: Exception) {
                     handleApiError(e)
@@ -252,6 +305,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         queue.add(jsonRequest)
     }
 
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(binding.promptInput.windowToken, 0)
+    }
+
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
@@ -260,18 +318,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     try {
+                        // Convert ImageProxy to Bitmap
                         val buffer = image.planes[0].buffer
                         val bytes = ByteArray(buffer.remaining())
                         buffer.get(bytes)
-
-                        // Convert to JPEG format
                         val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        val outputStream = ByteArrayOutputStream()
-                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 100, outputStream)
-                        val jpegBytes = outputStream.toByteArray()
 
-                        uploadImageToFirebase(jpegBytes)
-                        outputStream.close()
+                        // Compress the image
+                        val compressedBytes = compressImage(bitmap)
+
+                        // Show frozen frame
+                        showFrozenFrame(bitmap)
+
+                        // Log size comparison
+                        Log.d(TAG, "Original size: ${bytes.size}, Compressed size: ${compressedBytes.size}")
+
+                        // Upload compressed image
+                        uploadImageToFirebase(compressedBytes)
+
                     } catch (e: Exception) {
                         Log.e(TAG, "Error processing image: ${e.message}", e)
                         Toast.makeText(baseContext, "Failed to process image: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -289,6 +353,68 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
         )
     }
+    private fun compressImage(bitmap: Bitmap): ByteArray {
+        val maxSize = 800 // Reduced from 1024 to 800
+        var scaledBitmap = bitmap
+
+        // Scale down the image if it's larger than maxSize
+        if (bitmap.width > maxSize || bitmap.height > maxSize) {
+            val scaleFactor = maxSize.toFloat() / maxOf(bitmap.width, bitmap.height)
+            val newWidth = (bitmap.width * scaleFactor).toInt()
+            val newHeight = (bitmap.height * scaleFactor).toInt()
+            scaledBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        }
+
+        // Compress with lower quality (70% instead of 85%)
+        val outputStream = ByteArrayOutputStream()
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+
+        // Additional compression if size is still large
+        var compressQuality = 70
+        var streamLength = outputStream.size()
+
+        while (streamLength > 500000 && compressQuality > 30) { // Limit to 500KB
+            outputStream.reset()
+            compressQuality -= 10
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, compressQuality, outputStream)
+            streamLength = outputStream.size()
+        }
+
+        return outputStream.toByteArray()
+    }
+
+    private fun showFrozenFrame(bitmap: Bitmap) {
+        // Remove any existing frozen frame first
+        removeFrozenFrame()
+
+        // Create ImageView with the same dimensions as the preview
+        val frozenFrameView = ImageView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (resources.displayMetrics.heightPixels * 0.5).toInt() // 50% of screen height
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setImageBitmap(bitmap)
+            tag = "frozen_frame"
+        }
+
+        // Add the frozen frame view
+        (binding.viewFinder.parent as ViewGroup).addView(frozenFrameView)
+        binding.viewFinder.visibility = View.INVISIBLE
+        isCameraFrozen = true
+    }
+    private fun removeFrozenFrame() {
+        try {
+            val viewGroup = binding.viewFinder.parent as ViewGroup
+            val frozenFrame = viewGroup.findViewWithTag<ImageView>("frozen_frame")
+            frozenFrame?.let {
+                viewGroup.removeView(it)
+            }
+            binding.viewFinder.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing frozen frame: ${e.message}")
+        }
+    }
 
     private fun freezeCamera() {
         isCameraFrozen = true
@@ -298,17 +424,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val previewView = binding.viewFinder
                 val bitmap = previewView.bitmap
 
-                val frozenFrameView = ImageView(this).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setImageBitmap(bitmap)
-                }
+                bitmap?.let {
+                    // Get preview dimensions
+                    val params = previewView.layoutParams as ViewGroup.LayoutParams
 
-                (previewView.parent as ViewGroup).addView(frozenFrameView)
-                frozenFrameView.tag = "frozen_frame"
+                    val frozenFrameView = ImageView(this).apply {
+                        layoutParams = ViewGroup.LayoutParams(params.width, params.height)
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageBitmap(bitmap)
+                        // Set the same position as the preview view
+                        x = previewView.x
+                        y = previewView.y
+                    }
+
+                    (previewView.parent as ViewGroup).addView(frozenFrameView)
+                    frozenFrameView.tag = "frozen_frame"
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error freezing camera: ${e.message}")
                 resumeCamera()
@@ -317,14 +448,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun resumeCamera() {
+        if (!isCameraFrozen) return
+
         isCameraFrozen = false
+        removeFrozenFrame()
+
         try {
-            val viewGroup = binding.viewFinder.parent as ViewGroup
-            val frozenFrame = viewGroup.findViewWithTag<ImageView>("frozen_frame")
-            frozenFrame?.let {
-                viewGroup.removeView(it)
-            }
             camera?.cameraControl?.enableTorch(false)
+            startCamera() // Restart camera preview
         } catch (e: Exception) {
             Log.e(TAG, "Error resuming camera: ${e.message}")
         }

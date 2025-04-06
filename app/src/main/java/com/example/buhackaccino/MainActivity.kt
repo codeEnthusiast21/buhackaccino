@@ -11,6 +11,8 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -39,9 +41,15 @@ import org.json.JSONObject
 import java.util.Locale
 import com.android.volley.DefaultRetryPolicy
 import com.example.buhackaccino.databinding.ActivityMainBinding
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.Translator
+import com.google.mlkit.nl.translate.TranslatorOptions
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
+import android.speech.tts.UtteranceProgressListener
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
@@ -65,12 +73,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var touchStartTime: Long = 0
     private val MAX_CLICK_DURATION = 200
     private var isUserScrolling = false
+    private lateinit var translator: Translator
+    private var selectedLanguage = "en"
+    private lateinit var selectedLocale: Locale
+    private var isTTSInitialized = false
+    private var pendingTextToSpeak: String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Get language from intent
+        selectedLanguage = intent.getStringExtra("selected_language") ?: "en"
+        selectedLocale = when (selectedLanguage) {
+            "hi" -> Locale("hi", "IN")
+            "ta" -> Locale("ta", "IN")
+            "bn" -> Locale("bn", "IN")
+            "te" -> Locale("te", "IN")
+            "mr" -> Locale("mr", "IN")
+            "gu" -> Locale("gu", "IN")
+            "kn" -> Locale("kn", "IN")
+            "ur" -> Locale("ur", "IN")
+            else -> Locale.US
+        }
+
+        // Setup translator
+        setupTranslator()
 
 
 
@@ -133,6 +162,70 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tts = TextToSpeech(this, this)
         setupTouchListener()
         cameraExecutor = Executors.newSingleThreadExecutor()
+
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                isTTSInitialized = true
+                val result = tts.setLanguage(selectedLocale)
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Log.e(TAG, "Language not supported: $selectedLanguage")
+                    val installIntent = Intent()
+                    installIntent.action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
+                    startActivity(installIntent)
+                }
+            } else {
+                Log.e(TAG, "TTS Initialization failed")
+            }
+        }
+    }
+
+    private fun setupTranslator() {
+        if (selectedLanguage == "en") return
+
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(selectedLanguage)
+            .build()
+
+        translator = Translation.getClient(options)
+
+        // Force download model
+        binding.progressBar.visibility = View.VISIBLE
+        translator.downloadModelIfNeeded()
+            .addOnSuccessListener {
+                Log.d(TAG, "Translation model downloaded successfully")
+                binding.progressBar.visibility = View.GONE
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error downloading translation model: ${exception.message}")
+                binding.progressBar.visibility = View.GONE
+                Toast.makeText(this, "Failed to download translation model", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun translateAndAddMessage(englishText: String) {
+        if (selectedLanguage == "en") {
+            chatAdapter.addMessage(ChatMessage(englishText))
+            speakText(englishText)
+            return
+        }
+
+        translator.translate(englishText)
+            .addOnSuccessListener { translatedText ->
+                chatAdapter.addMessage(ChatMessage(translatedText))
+                speakText(translatedText)
+                if (!isUserScrolling) {
+                    binding.chatRecyclerView.postDelayed({
+                        binding.chatRecyclerView.smoothScrollToPosition(chatAdapter.itemCount - 1)
+                    }, 100)
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Translation failed: ${exception.message}")
+                // Fallback to English
+                chatAdapter.addMessage(ChatMessage(englishText))
+                speakText(englishText)
+            }
     }
 
     private fun setupTouchListener() {
@@ -231,11 +324,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
     private fun sendImageUrlToApi(firebaseUrl: String, customPrompt: String = "What's in this image ?") {
-        lastImageUrl = firebaseUrl // Store the URL for reuse
+        lastImageUrl = firebaseUrl
         chatAdapter.addMessage(ChatMessage("Analyzing image...", firebaseUrl))
+        binding.progressBar.visibility = View.VISIBLE
 
         val queue = Volley.newRequestQueue(this)
-
         val jsonObject = JSONObject().apply {
             put("model", "Qwen/Qwen2-VL-72B-Instruct")
             put("messages", JSONArray().apply {
@@ -264,19 +357,47 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             jsonObject,
             { response ->
                 try {
-                    val content = response.getJSONArray("choices")
+                    val englishContent = response.getJSONArray("choices")
                         .getJSONObject(0)
                         .getJSONObject("message")
                         .getString("content")
 
-                    runOnUiThread {
-                        chatAdapter.addMessage(ChatMessage(content))
-                        binding.progressBar.visibility = View.GONE
-                        speakText(content)
-                        if (!isUserScrolling) {
-                            binding.chatRecyclerView.postDelayed({
-                                binding.chatRecyclerView.smoothScrollToPosition(chatAdapter.itemCount - 1)
-                            }, 100)
+                    // Translate English content to selected language
+                    if (selectedLanguage != "en") {
+                        translator.translate(englishContent)
+                            .addOnSuccessListener { translatedText ->
+                                runOnUiThread {
+                                    binding.progressBar.visibility = View.GONE
+                                    chatAdapter.addMessage(ChatMessage(translatedText))
+                                    Log.d(TAG, "Translation successful: $translatedText")
+
+                                    // Ensure TTS is ready
+                                    if (isTTSInitialized) {
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            speakText(translatedText)
+                                        }, 1000)
+                                    } else {
+                                        pendingTextToSpeak = translatedText
+                                    }
+                                    scrollToBottom()
+                                }
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e(TAG, "Translation failed: ${exception.message}")
+                                runOnUiThread {
+                                    binding.progressBar.visibility = View.GONE
+                                    chatAdapter.addMessage(ChatMessage(englishContent))
+                                    speakText(englishContent)
+                                    Toast.makeText(baseContext, "Translation failed, showing English text", Toast.LENGTH_SHORT).show()
+                                    scrollToBottom()
+                                }
+                            }
+                    } else {
+                        runOnUiThread {
+                            binding.progressBar.visibility = View.GONE
+                            chatAdapter.addMessage(ChatMessage(englishContent))
+                            speakText(englishContent)
+                            scrollToBottom()
                         }
                     }
                     resumeCamera()
@@ -284,9 +405,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     handleApiError(e)
                 }
             },
-            { error ->
-                handleApiError(error)
-            }
+            { error -> handleApiError(error) }
         ) {
             override fun getHeaders(): MutableMap<String, String> {
                 return HashMap<String, String>().apply {
@@ -296,13 +415,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
         }
 
-        jsonRequest.retryPolicy = DefaultRetryPolicy(
-            30000,
-            0,
-            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        )
-
+        jsonRequest.retryPolicy = DefaultRetryPolicy(30000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT)
         queue.add(jsonRequest)
+    }
+
+    private fun scrollToBottom() {
+        if (!isUserScrolling) {
+            binding.chatRecyclerView.postDelayed({
+                binding.chatRecyclerView.smoothScrollToPosition(chatAdapter.itemCount - 1)
+            }, 100)
+        }
     }
 
     private fun hideKeyboard() {
@@ -501,18 +623,85 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakText(text: String) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
-    }
+        if (!isTTSInitialized) {
+            pendingTextToSpeak = text
+            Log.d(TAG, "TTS not initialized, saving text for later: $text")
+            return
+        }
 
+        try {
+            // Set language before speaking
+            val result = tts.setLanguage(selectedLocale)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e(TAG, "Language not supported: $selectedLanguage")
+                Toast.makeText(this, "Language not supported: $selectedLanguage", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            tts.setSpeechRate(0.8f)
+            tts.setPitch(1.0f)
+
+            val params = Bundle()
+            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "messageId")
+
+            if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "messageId") == TextToSpeech.ERROR) {
+                Log.e(TAG, "Error speaking text")
+                Toast.makeText(this, "Error in text-to-speech", Toast.LENGTH_SHORT).show()
+            } else {
+                Log.d(TAG, "Speaking text: $text")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "TTS Error: ${e.message}")
+            Toast.makeText(this, "TTS Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts.setLanguage(Locale.US)
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Toast.makeText(this, "Language not supported", Toast.LENGTH_SHORT).show()
+            isTTSInitialized = true
+            configureTextToSpeech()
+
+            // Speak any pending text
+            pendingTextToSpeak?.let {
+                speakText(it)
+                pendingTextToSpeak = null
             }
         } else {
-            Toast.makeText(this, "TTS Initialization failed", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "TTS Initialization failed")
+            Toast.makeText(this, "Text-to-Speech initialization failed", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun configureTextToSpeech() {
+        val result = tts.setLanguage(selectedLocale)
+        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            Log.e(TAG, "Language not supported: $selectedLanguage")
+
+            // Install language data
+            val installIntent = Intent()
+            installIntent.action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
+            startActivity(installIntent)
+
+            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onDone(utteranceId: String) {
+                    // Try setting language again after potential installation
+                    runOnUiThread {
+                        if (tts.setLanguage(selectedLocale) == TextToSpeech.SUCCESS) {
+                            Log.d(TAG, "Language set successfully after installation")
+                        }
+                    }
+                }
+
+                override fun onError(utteranceId: String) {
+                    Log.e(TAG, "TTS Error for utterance: $utteranceId")
+                }
+
+                override fun onStart(utteranceId: String) {
+                    Log.d(TAG, "TTS Started utterance: $utteranceId")
+                }
+            })
+        }
+        tts.setPitch(1.0f)
+        tts.setSpeechRate(0.8f)
     }
 
     private fun startSecondActivity() {
@@ -547,7 +736,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts.stop()
         }
         tts.shutdown()
+        if (::translator.isInitialized && selectedLanguage != "en") {
+            translator.close()
+        }
     }
+
 
     companion object {
         private const val TAG = "MainActivity"

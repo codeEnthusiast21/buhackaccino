@@ -77,8 +77,17 @@ class PermissionCheckerActivity : AppCompatActivity(), TextToSpeech.OnInitListen
             }
 
             goToMainButton.setOnClickListener {
-                startMainActivity()
+                val extras = Bundle().apply {
+                    putString("selected_language", selectedLanguage)
+                    putString(
+                        "selected_locale",
+                        languageMap[binding.languageSpinner.selectedItem.toString()]?.locale.toString()
+                    )
+                }
+
+                TransitionActivity.start(this@PermissionCheckerActivity, MainActivity::class.java, extras)
             }
+
 
             cancelButton.setOnClickListener {
                 finish()
@@ -130,14 +139,14 @@ class PermissionCheckerActivity : AppCompatActivity(), TextToSpeech.OnInitListen
         speakText("Please enable voice control service in accessibility settings")
     }
 
-    private fun startMainActivity() {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra("selected_language", selectedLanguage)
-            putExtra("selected_locale", languageMap[binding.languageSpinner.selectedItem.toString()]?.locale.toString())
-        }
-        startActivity(intent)
-        finish()
-    }
+//    private fun startMainActivity() {
+//        val intent = Intent(this, MainActivity::class.java).apply {
+//            putExtra("selected_language", selectedLanguage)
+//            putExtra("selected_locale", languageMap[binding.languageSpinner.selectedItem.toString()]?.locale.toString())
+//        }
+//        startActivity(intent)
+//        finish()
+//    }
 
     private fun speakText(text: String) {
         textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)

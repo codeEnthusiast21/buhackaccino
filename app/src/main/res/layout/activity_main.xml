@@ -5,6 +5,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background">
 
+
     <!-- Camera Preview (Upper Half) -->
     <androidx.camera.view.PreviewView
         android:id="@+id/viewFinder"

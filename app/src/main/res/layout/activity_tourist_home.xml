@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background_dark"
+    tools:context=".touristHomeActivity">
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/exploreTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="24dp"
+        android:text="Explore Nearby"
+        android:textColor="@color/text_white"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:contentDescription="Explore Nearby Places" />
+
+    <!-- Category Chips -->
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/categoryChips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:singleLine="false">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipAttractions"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Attractions"
+            android:textColor="@color/text_white"
+            android:textSize="16sp"
+            app:chipBackgroundColor="@color/accent_blue"
+            app:chipMinHeight="48dp"
+            android:contentDescription="Filter by Attractions" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipRestaurants"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Restaurants"
+            android:textColor="@color/text_white"
+            android:textSize="16sp"
+            app:chipBackgroundColor="@color/accent_purple"
+            app:chipMinHeight="48dp"
+            android:contentDescription="Filter by Restaurants" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMuseums"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Museums"
+            android:textColor="@color/text_white"
+            android:textSize="16sp"
+            app:chipBackgroundColor="@color/accent_pink"
+            app:chipMinHeight="48dp"
+            android:contentDescription="Filter by Museums" />
+    </com.google.android.material.chip.ChipGroup>
+
+    <!-- CardView for Place -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/placeCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/card_background"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/placeImage"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/tokyo_panorama"
+                android:contentDescription="Tokyo Tower Image" />
+
+            <TextView
+                android:id="@+id/placeName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:text="Tokyo Tower"
+                android:textColor="@color/text_white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <RatingBar
+                android:id="@+id/placeRating"
+                style="?android:attr/ratingBarStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:numStars="5"
+                android:rating="4.5"
+                android:stepSize="0.5"
+                android:contentDescription="Rating: 4.5 out of 5 stars" />
+
+            <TextView
+                android:id="@+id/placeDistance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:text="0.5 km away"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp" />
+
+            <LinearLayout
+                android:id="@+id/actionButtons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/mapButton"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/rounded_button_bg"
+                    android:drawableStart="@drawable/ic_map"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:text="Map"
+                    android:textColor="@color/text_white"
+                    android:textSize="16sp" />
+
+                <Button
+                    android:id="@+id/audioGuideButton"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/rounded_button_bg"
+                    android:drawableStart="@drawable/ic_play_audio"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:text="Audio"
+                    android:textColor="@color/text_white"
+                    android:textSize="16sp" />
+
+                <ImageButton
+                    android:id="@+id/favoriteButton"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/rounded_icon_button_bg"
+                    android:contentDescription="Add to Favorites"
+                    android:src="@drawable/ic_guide" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Glow + Search Section -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="16dp"
+        android:layout_marginHorizontal="22dp"
+        android:layout_marginTop="140dp">
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/glow_card"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardCornerRadius="48dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/glowing_border_background" />
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/search_card"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            app:cardBackgroundColor="#1E1E1E"
+            app:cardCornerRadius="45dp"
+            android:layout_marginTop="5dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/btn_camera"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    app:cardBackgroundColor="#0F1B4B"
+                    app:cardCornerRadius="30dp">
+
+                    <com.airbnb.lottie.LottieAnimationView
+                        android:id="@+id/animationView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:lottie_autoPlay="true"
+                        app:lottie_loop="true"
+                        app:lottie_rawRes="@raw/cameraanime" />
+                </androidx.cardview.widget.CardView>
+
+                <EditText
+                    android:id="@+id/prompt_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp"
+                    android:background="@null"
+                    android:hint="Ask Alok !"
+                    android:imeOptions="actionDone"
+                    android:inputType="textMultiLine"
+                    android:maxLines="2"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#9AA0A6"
+                    android:textSize="28sp" />
+
+                <ImageView
+                    android:id="@+id/btn_add"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_send" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </FrameLayout>
+</LinearLayout>

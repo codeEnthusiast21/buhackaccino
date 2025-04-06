@@ -2,4 +2,24 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="card_background">#2A2A2A</color>
+
+    <!-- Accent Colors with high contrast -->
+    <color name="accent_purple">#BB86FC</color>
+    <color name="accent_blue">#64B5F6</color>
+    <color name="accent_pink">#FF79C6</color>
+    <color name="accent_yellow">#FFD54F</color>
+
+    <!-- Text Colors -->
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_light">#E6E6E6</color>
+    <color name="text_secondary">#B0B0B0</color>
+
+    <!-- Glowing Effect Colors -->
+    <color name="glow_purple_start">#BB86FC</color>
+    <color name="glow_purple_end">#6200EA</color>
+    <color name="glow_blue_start">#64B5F6</color>
+    <color name="glow_blue_end">#1976D2</color>
 </resources>

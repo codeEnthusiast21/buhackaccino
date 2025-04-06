@@ -3,6 +3,11 @@
     <style name="Base.Theme.Buhackaccino" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">#301934</item>
+        <item name="colorSecondary">#7E57C2</item>
+        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimary</item>
+        <item name="android:navigationBarColor" tools:targetApi="l">?attr/colorPrimary</item>
     </style>
 
     <style name="Theme.Buhackaccino" parent="Base.Theme.Buhackaccino" />

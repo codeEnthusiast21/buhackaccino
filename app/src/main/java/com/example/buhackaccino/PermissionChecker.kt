@@ -85,7 +85,7 @@ class PermissionCheckerActivity : AppCompatActivity(), TextToSpeech.OnInitListen
                     )
                 }
 
-                TransitionActivity.start(this@PermissionCheckerActivity, MainActivity::class.java, extras)
+                TransitionActivity.start(this@PermissionCheckerActivity, touristHomeActivity::class.java, extras)
             }
 
 

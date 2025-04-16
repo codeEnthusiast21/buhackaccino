@@ -1,181 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/background_dark"
-    tools:context=".touristHomeActivity">
+    android:background="@color/background_dark">
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/exploreTitle"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="24dp"
-        android:text="Explore Nearby"
-        android:textColor="@color/text_white"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:contentDescription="Explore Nearby Places" />
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-    <!-- Category Chips -->
-    <com.google.android.material.chip.ChipGroup
-        android:id="@+id/categoryChips"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        app:singleLine="false">
-
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chipAttractions"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Attractions"
-            android:textColor="@color/text_white"
-            android:textSize="16sp"
-            app:chipBackgroundColor="@color/accent_blue"
-            app:chipMinHeight="48dp"
-            android:contentDescription="Filter by Attractions" />
-
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chipRestaurants"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Restaurants"
-            android:textColor="@color/text_white"
-            android:textSize="16sp"
-            app:chipBackgroundColor="@color/accent_purple"
-            app:chipMinHeight="48dp"
-            android:contentDescription="Filter by Restaurants" />
-
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chipMuseums"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Museums"
-            android:textColor="@color/text_white"
-            android:textSize="16sp"
-            app:chipBackgroundColor="@color/accent_pink"
-            app:chipMinHeight="48dp"
-            android:contentDescription="Filter by Museums" />
-    </com.google.android.material.chip.ChipGroup>
-
-    <!-- CardView for Place -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/placeCard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardBackgroundColor="@color/card_background"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp">
-
-        <LinearLayout
+        <!-- Title -->
+        <TextView
+            android:id="@+id/exploreTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="24dp"
+            android:text="Explore Nearby"
+            android:textColor="@color/text_white"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:contentDescription="Explore Nearby Places" />
 
-            <ImageView
-                android:id="@+id/placeImage"
-                android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/tokyo_panorama"
-                android:contentDescription="Tokyo Tower Image" />
+        <!-- Category Chips -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/categoryChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            app:singleLine="false">
 
-            <TextView
-                android:id="@+id/placeName"
-                android:layout_width="match_parent"
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAttractions"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="Tokyo Tower"
+                android:text="Attractions"
                 android:textColor="@color/text_white"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+                android:textSize="16sp"
+                app:chipBackgroundColor="@color/accent_blue"
+                app:chipMinHeight="48dp"
+                android:contentDescription="Filter by Attractions" />
 
-            <RatingBar
-                android:id="@+id/placeRating"
-                style="?android:attr/ratingBarStyleSmall"
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipRestaurants"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:numStars="5"
-                android:rating="4.5"
-                android:stepSize="0.5"
-                android:contentDescription="Rating: 4.5 out of 5 stars" />
+                android:text="Restaurants"
+                android:textColor="@color/text_white"
+                android:textSize="16sp"
+                app:chipBackgroundColor="@color/accent_purple"
+                app:chipMinHeight="48dp"
+                android:contentDescription="Filter by Restaurants" />
 
-            <TextView
-                android:id="@+id/placeDistance"
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipMuseums"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="8dp"
-                android:text="0.5 km away"
-                android:textColor="@color/text_secondary"
-                android:textSize="16sp" />
+                android:text="Museums"
+                android:textColor="@color/text_white"
+                android:textSize="16sp"
+                app:chipBackgroundColor="@color/accent_pink"
+                app:chipMinHeight="48dp"
+                android:contentDescription="Filter by Museums" />
+        </com.google.android.material.chip.ChipGroup>
 
-            <LinearLayout
-                android:id="@+id/actionButtons"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:orientation="horizontal">
+        <!-- RecyclerView for scrollable places -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/placesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:padding="8dp"
+            android:scrollbars="vertical" />
 
-                <Button
-                    android:id="@+id/mapButton"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/rounded_button_bg"
-                    android:drawableStart="@drawable/ic_map"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:text="Map"
-                    android:textColor="@color/text_white"
-                    android:textSize="16sp" />
+    </LinearLayout>
 
-                <Button
-                    android:id="@+id/audioGuideButton"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/rounded_button_bg"
-                    android:drawableStart="@drawable/ic_play_audio"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:text="Audio"
-                    android:textColor="@color/text_white"
-                    android:textSize="16sp" />
-
-                <ImageButton
-                    android:id="@+id/favoriteButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="@drawable/rounded_icon_button_bg"
-                    android:contentDescription="Add to Favorites"
-                    android:src="@drawable/ic_guide" />
-            </LinearLayout>
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Glow + Search Section -->
+    <!-- Search Section -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_marginBottom="16dp"
-        android:layout_marginHorizontal="22dp"
-        android:layout_marginTop="140dp">
+        android:layout_marginHorizontal="22dp">
 
         <androidx.cardview.widget.CardView
             android:id="@+id/glow_card"
@@ -248,4 +164,5 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
     </FrameLayout>
-</LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
